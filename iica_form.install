@@ -1,0 +1,221 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+
+function iica_form_install() {
+  // Check to make sure the vocabulary doesn't exist, if not, create it.
+  if(!taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda')) {
+    drupal_set_message('Creating "IICA" taxonomy.', 'status');
+    $vocab = (object) array(
+      'name' => 'Industry Innovation and Competitiveness Agenda',
+      'machine_name' => 'industry_innovation_and_competitiveness_agenda',
+      'description' => 'Lists topics available for subscription in the IICA form, along with the appropriate users to email.',
+      'hierarchy' => 1,
+      'module' => 'taxonomy',
+      'weight' => 0,
+    );
+    taxonomy_vocabulary_save($vocab);
+
+    $topics = array(
+      0 => t('The Industry and Innovation Competitiveness Agenda – overall'),
+      1 => t('Accepted trusted international standards and risk assessments'),
+      2 => t('Streamlining certification of medical devices'),
+      3 => t('Streamlining industrial chemicals assessments'),
+      4 => t('Shifting the culture of regulation'),
+      5 => t('Expanding access to the Commonwealth workers’ compensation scheme'),
+      6 => t('Streamlining construction regulation'),
+      7 => t('Reducing superannuation compliance burden'),
+      8 => t('Trusted Trader Programme'),
+      9 => t('Removing barriers to professional services investment'),
+      10 => t('Examining coastal shipping regulations'),
+      11 => t('Increasing the focus on STEM and innovation in schools (including P-Tech)'),
+      12 => t('Improving the Vocational Education and Training system'),
+      13 => t('Liberalising the subclass 457 visa programme'),
+      14 => t('Expanding the investment visa programme'),
+      15 => t('Establishing Industry Growth Centres'),
+      16 => t('Enhancing commercial returns from research (including Science Council)'),
+      17 => t('Improving taxation arrangements for Employee Share Schemes'),
+      18 => t('Crowd-sourced equity funding framework'),
+      19 => t('Small Business engagement principles'),
+    );
+
+    foreach($topics as $topic => $item) {
+      $term = (object) array(
+        'name'=> $item,
+        'description' => $item,
+        'vid' => $vocab->vid,
+        'weight' => $topic,
+      );
+      taxonomy_term_save($term);
+    }
+  } else {
+    drupal_set_message('"IICA" vocabulary exists.', 'status');
+  }
+
+  if(!taxonomy_vocabulary_machine_name_load('states')) {
+    drupal_set_message('Creating "States" taxonomy...', 'status');
+    $vocab = (object) array(
+      'name' => 'States',
+      'machine_name' => 'states',
+      'description' => 'A list of Australian states.',
+      'hierarchy' => 1,
+      'module' => 'taxonomy',
+      'weight' => 0,
+    );
+    taxonomy_vocabulary_save($vocab);
+
+    $states = array(
+      'ACT' => t('ACT'),
+      'NSW' => t('NSW'),
+      'NT' => t('NT'),
+      'Qld' => t('Qld'),
+      'SA' => t('SA'),
+      'Tas' => t('Tas'),
+      'Vic' => t('Vic'),
+      'WA' => t('WA'),
+    );
+
+    foreach ($states as $state) {
+      $term = (object) array(
+        'name'=> $state,
+        'description' => $state,
+        'vid' => $vocab->vid,
+      );
+      taxonomy_term_save($term);
+    }
+  } else {
+    drupal_set_message('"States" vocabulary exists.','status');
+  }
+
+  if(!taxonomy_vocabulary_machine_name_load('org_types')) {
+    drupal_set_message('Creating "Organisation Types" taxonomy...', 'status');
+    $vocab = (object) array(
+      'name' => 'Organisation Types',
+      'machine_name' => 'org_types',
+      'description' => 'A list of organisation types.',
+      'hierarchy' => 1,
+      'module' => 'taxonomy',
+      'weight' => 0,
+    );
+    taxonomy_vocabulary_save($vocab);
+
+    $orgtypes = drupal_map_assoc(array(
+      0 => t('Research organisation'),
+      1 => t('University'),
+      2 => t('SME'),
+      3 => t('Medium-sized enterprise'),
+      4 => t('Multinational'),
+      5 => t('Industry association'),
+      6 => t('State or Territory Government'),
+      7 => t('NGO'),
+      8 => t('Other'),
+    ));
+
+    foreach ($orgtypes as $orgtype => $item) {
+      $term = (object) array(
+        'name'=> $item,
+        'description' => $item,
+        'vid' => $vocab->vid,
+        'weight' => $orgtype,
+      );
+      taxonomy_term_save($term);
+    }
+  } else {
+    drupal_set_message('"Organisation types" vocabulary exists.','status');
+  }
+
+  field_cache_clear();
+  field_associate_fields('iica_form');
+  field_create_field(_iica_form_installed_fields());
+  field_create_instance(_iica_form_installed_instances());
+}
+
+function _iica_form_installed_fields() {
+  $field = array(
+    'field_iica_topic_reference' => array(
+      'field_name' => 'field_iica_topic_reference',
+      'active' => 1,
+      'deleted' => 0,
+      'entity_types' => array(),
+      'foreign keys' => array(
+        'tid' => array(
+          'columns' => array(
+            'tid' => 'tid',
+          ),
+          'table' => 'taxonomy_term_data',
+        ),
+      ),
+      'module' => 'taxonomy',
+      'settings' => array(
+        'allowed_values' => array(
+          0 => array(
+            'vocabulary' => 'industry_innovation_and_competitiveness_agenda',
+            'parent' => 0,
+          ),
+        ),
+      ),
+      'translatable' => 0,
+      'type' => 'taxonomy_term_reference',
+    ),
+  );
+  drush_log($field);
+  return $field;
+}
+
+function _iica_form_installed_instances() {
+  return array(
+    'field_iica_topic_reference' => array(
+      'bundle' => 'user',
+      'default_value' => NULL,
+      'deleted' => 0,
+      'description' => '',
+      'display' => array(
+        'default' => array(
+          'label' => 'above',
+          'module' => 'taxonomy',
+          'settings' => array(),
+          'type' => 'taxonomy_term_reference_link',
+          'weight' => 0,
+        ),
+      ),
+      'entity_type' => 'user',
+      'field_name' => 'field_iica_topic_reference',
+      'label' => 'Topic Reference',
+      'required' => 0,
+      'settings' => array(
+        'user_register_form' => 0,
+      ),
+      'widget' => array(
+        'active' => 1,
+        'module' => 'options',
+        'settings' => array(),
+        'type' => 'options_select',
+        'weight' => 12,
+      ),
+    ),
+  );
+}
+
+/**
+* Implements hook_uninstall().
+*/
+function iica_form_uninstall() {
+  $vocab = taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda');
+  taxonomy_vocabulary_delete($vocab->vid);
+  drupal_set_message('Deleted "IICA" taxonomy.', 'status');
+
+  $vocab = taxonomy_vocabulary_machine_name_load('states');
+  taxonomy_vocabulary_delete($vocab->vid);
+  drupal_set_message('Deleted "States" taxonomy.', 'status');
+
+  $vocab = taxonomy_vocabulary_machine_name_load('org_types');
+  taxonomy_vocabulary_delete($vocab->vid);
+  drupal_set_message('Deleted "Organisation Types" taxonomy.', 'status');
+
+  if(field_info_field('field_iica_topic_reference')) {
+    field_delete_field('field_iica_topic_reference');
+    field_purge_batch(100);
+  }
+}

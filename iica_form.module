@@ -1,0 +1,291 @@
+<?php
+
+/** 
+ * Implements hook_menu().
+ */
+function iica_form_menu() {
+  $items = array();
+  $items['innovation-agenda-form'] = array(
+    'title' => 'Industry Innovation and Competitiveness Agenda',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('_iica_form_form_builder'),
+    'access arguments' => array('access iica form'),
+    'description' => 'Innovation Agenda Form',
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/config/system/innovation-agenda-form'] = array(
+    'title' => t('Industry Innovation and Competitiveness Agenda form Settings'),
+    'description' => 'Settings for the Industry Innovation and Competitiveness Agenda form.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('_iica_form_admin_form'),
+    'access arguments' => array('access iica settings form'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission()
+ **/
+
+function iica_form_permission() {
+  return array(
+    'access iica form' => array(
+      'title' => t('Access Industry Innovation and Competitiveness Agenda form'),
+      'description' => t('Allow users to access the Industry Innovation and Competitiveness Agenda form.'),
+    ),
+    'access iica settings form' => array(
+      'title' => t('Access Industry Innovation and Competitiveness Agenda settings'),
+      'description' => t('Allow users to access the Industry Innovation and Competitiveness Agenda settings.'),
+    ),
+  );
+}
+
+function _iica_form_admin_form() {
+  $form = array();
+
+  $vids = taxonomy_get_vocabularies();
+
+  foreach ($vids as $vid => $item) {
+    $options[$item->vid] = $item->name;
+  }
+  
+  $form['topic_taxonomy'] = array(
+    '#type' => 'select',
+    '#title' => 'Topics list',
+    '#default_value' => variable_get('topic_taxonomy','industry_innovation_and_competitiveness_agenda'),
+    '#description' => t('Select the taxonomy you wish to use to get the list of topics from.'),
+    '#required' => TRUE,
+    '#options' => $options,
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Callback function for the form.
+ */
+
+function _iica_form_form_builder($form_state) {
+    
+  $form['details'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('You and your business'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['details']['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#description' => t('Please enter your name.'),
+    '#size' => 20,
+    '#maxlength' => 40,
+    '#required' => TRUE,
+    '#attributes' => array(
+      'placeholder' => t('Enter your name'),
+    ),
+    '#default_value' => 'test',
+  );
+
+  $form['details']['organisation'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Business/Organisation'),
+    '#description' => t('Please enter your business or organisation.'),
+    '#size' => 40,
+    '#maxlength' => 40,
+    '#attributes' => array(
+      'placeholder' => t('Business/Organisation name'),
+    ),
+    '#default_value' => 'test',
+  );
+
+  $form['details']['orgtype'] = array(
+    '#type' => 'radios',
+    '#title' => t('Type of Business/Organisation'),
+    '#description' => t('Please select your business or organisation type.'),
+    '#options' => $orgtypes,
+    '#states' => array(
+      'visible' => array(
+        ':input[name="organisation"]' => array('filled' => TRUE),
+      ),
+    ),
+  );
+
+  $form['details']['state'] = array(
+    '#type' => 'select',
+    '#title' => t('State/Territory'),
+    '#required' => TRUE,
+    '#options' => $states,
+    '#default_value' => 'ACT',
+  );
+
+  $form['details']['city'] = array(
+    '#type' => 'textfield',
+    '#title' => t('City/Town'),
+    '#description' => t('Please enter your city or town.'),
+    '#size' => 20,
+    '#maxlength' => 40,
+    '#required' => TRUE,
+    '#attributes' => array(
+      'placeholder' => t('City/Town'),
+    ),
+    '#default_value' => 'test',
+  );
+
+  $form['details']['phone'] = array (
+    '#type' => 'textfield',
+    '#title' => t('Phone'),
+    '#description' => t('Please enter your phone number including your area code.'),
+    '#size' => 12,
+    '#maxlength' => 12,
+    '#required' => TRUE,
+    '#attributes' => array(
+      'placeholder' => t('01 2345 6789'),
+    ),
+    '#default_value' => '02 1234 5678',
+  );
+
+  $form['details']['email'] = array (
+    '#type' => 'textfield',
+    '#title' => t('Email'),
+    '#description' => t('Please enter your email address.'),
+    '#size' => 20,
+    '#maxlength' => 40,
+    '#required' => TRUE,
+    '#attributes' => array(
+      'placeholder' => t('name@domain.com.au'),
+    ),
+    '#default_value' => 'jesse.boyd@industry.gov.au',
+  );
+
+  $form['topics'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Topics'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['topics']['topic'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Topic'),
+    '#description' => t('Please select one or more topics.'),
+    '#options' => $topics,
+    '#required' => TRUE,
+    '#default_value' => array(0),
+  );
+
+  $form['topics']['message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Leave a message/feedback'),
+    '#description' => t('If there is anything else you would like to tell us, please add it here.'),
+    '#attributes' => array(
+      'placeholder' => t('Please enter a brief message.'),
+    ),
+  );
+
+  // Submit button.
+  $form['submit'] = array (
+    '#type' => 'submit',
+    '#value' => 'Submit',
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_mail().
+ */
+
+function iica_form_mail($key, &$message, $params) {
+
+  $options = array(
+    'langcode' => $message['language']->language,
+  );
+
+  $headers = array(
+    'MIME-Version' => '1.0',
+    'Content-Type' => 'text/html; charset=UTF-8;',
+    'Content-Transfer-Encoding' => '8Bit',
+    'X-Mailer' => 'Drupal',
+  );
+
+  foreach ($headers as $key => $value) {
+    $message['headers'][$key] = $value;
+  }
+  $name = t($params['name']);
+  $org = t($params['organisation']);
+  $type = $params['orgtype'];
+  $state = $params['state'];
+  $city = t($params['city']);
+  $phone = t($params['phone']);
+  $email = t($params['email']);
+  $topics = $params['topic'];
+
+  foreach ($topics as $key => $value) {
+    if ($value === 0) {
+      unset ($topics[$key]);
+    }
+  }
+
+  $text = t($params['message']);
+  $cc = $email;
+  $body = '<p><strong>Name:</strong>&nbsp;' . $name . '</p>' .
+            '<p><strong>Organisation:</strong>&nbsp;' . $org . '</p>' .
+            '<p><strong>Organisation Type:</strong>&nbsp;' . $type . '</p>' .
+            '<p><strong>State:</strong>&nbsp;' . $state . '</p>' .
+            '<p><strong>City:</strong>&nbsp;' . $city . '</p>' .
+            '<p><strong>Phone:</strong>&nbsp;' . $phone . '</p>' .
+            '<p><strong>Email:</strong>&nbsp;<a href="mailto:' . $email . '">' . $email . '</a></p>' .
+            '<p><strong>Topics:</strong></p><ul><li>' . implode('<li>', $topics) . '</ul>' .
+            '<p><strong>Message:</strong>&nbsp;' . $text . '</p>';
+
+  $message['subject'] = t('Email from ' . $email . ' [SEC=UNCLASSIFIED]');
+  $message['body'][] = check_plain($body);
+}
+
+/**
+ * Sends an e-mail.
+ *
+ * @param array $form_values
+ *   An array of values from the contact form fields that were submitted.
+ *   
+ */
+
+function iica_form_mail_send($form_values) {
+  $module = 'iica';
+  $key = 'iica_form_email';
+
+  $params = $form_values;
+
+  $to = $params['email'];
+  $from = 'web.development@industry.gov.au';
+
+  $language = language_default();
+
+  $send = TRUE;
+
+  $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
+  if ($result['result'] == TRUE) {
+    drupal_set_message(t('Your message has been sent.'));
+  } else {
+    drupal_set_message(t('There was a problem sending your message and it has not been sent.'), 'error');
+  }
+}
+
+function iica_form_iica_form_form_validate($form, &$form_state) {
+  // Validates the form.
+  $email = $form_state['values']['email'];
+  $phone = $form_state['values']['phone'];
+
+  if(!valid_email_address($email)) {
+    form_set_error('email', 'Please enter a valid email address.');
+  }
+  if (strlen($phone) > 0 && !preg_match('/^\D*0(\D*\d){9}\D*$/', $phone)) {
+    form_set_error('phone', 'Please enter a valid Australian phone number, either a landline in the format 02 xxxx xxxx or 04xx xxxx xxxx.');
+  }
+}
+
+function iica_form_iica_form_form_submit($form, &$form_state) {
+  iica_form_mail_send($form_state['values']);
+}
