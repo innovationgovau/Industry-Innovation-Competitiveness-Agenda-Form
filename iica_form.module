@@ -59,7 +59,56 @@ function _iica_form_admin_form() {
     '#options' => $options,
   );
 
+  $form['uninstall_options'] = array(
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#title' => t('Uninstall options'),
+  );
+
+  $form['uninstall_options']['remove_taxonomies'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Remove installed taxonomies?'),
+    '#default_value' => variable_get('remove_taxonomies', FALSE),
+  );
+  $form['uninstall_options']['remove_fields'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Remove installed fields?'),
+    '#default_value' => variable_get('remove_fields', FALSE),
+  );
+  $form['uninstall_options']['remove_role'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Remove installed role?'),
+    '#default_value' => variable_get('remove_role', FALSE),
+  );
   return system_settings_form($form);
+}
+
+/**
+ * Callback function to get options for form elements.
+ */
+
+function _iica_form_get_options($machine_name) {
+  $v = taxonomy_vocabulary_machine_name_load($machine_name);
+  $terms = taxonomy_get_tree($v->vid);
+  foreach ($terms as $term) {
+    $options[$term->tid] = $term->name;
+  }
+  return $options;
+}
+
+/**
+ * Custom function to get users by role.
+ */
+
+function _iica_form_load_users_by_role($role_name) {
+  $role = user_role_load_by_name($role_name);
+  $query = 'SELECT ur.uid
+    FROM {users_roles} AS ur
+    WHERE ur.rid = :rid';
+  $result = db_query($query, array(':rid' => $role->rid));
+  $uids = $result->fetchCol();
+  return user_load_multiple($uids);
 }
 
 /**
@@ -67,7 +116,16 @@ function _iica_form_admin_form() {
  */
 
 function _iica_form_form_builder($form_state) {
-    
+
+  // Check that the correct vocabularies exist. If not, return an empty page.
+
+  if(!taxonomy_vocabulary_machine_name_load('states') ||
+      !taxonomy_vocabulary_machine_name_load('org_types') ||
+      !taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda')) {
+    drupal_set_message('The form is missing required data. Please ensure that all required vocabularies are installed.');
+    return;
+  }
+  
   $form['details'] = array(
     '#type' => 'fieldset',
     '#title' => t('You and your business'),
@@ -104,7 +162,7 @@ function _iica_form_form_builder($form_state) {
     '#type' => 'radios',
     '#title' => t('Type of Business/Organisation'),
     '#description' => t('Please select your business or organisation type.'),
-    '#options' => $orgtypes,
+    '#options' => _iica_form_get_options('org_types'),
     '#states' => array(
       'visible' => array(
         ':input[name="organisation"]' => array('filled' => TRUE),
@@ -116,7 +174,7 @@ function _iica_form_form_builder($form_state) {
     '#type' => 'select',
     '#title' => t('State/Territory'),
     '#required' => TRUE,
-    '#options' => $states,
+    '#options' => _iica_form_get_options('states'),
     '#default_value' => 'ACT',
   );
 
@@ -170,7 +228,7 @@ function _iica_form_form_builder($form_state) {
     '#type' => 'checkboxes',
     '#title' => t('Topic'),
     '#description' => t('Please select one or more topics.'),
-    '#options' => $topics,
+    '#options' => _iica_form_get_options(taxonomy_vocabulary_load(variable_get('topic_taxonomy'))->machine_name),
     '#required' => TRUE,
     '#default_value' => array(0),
   );
@@ -231,29 +289,28 @@ function iica_form_mail($key, &$message, $params) {
   $text = t($params['message']);
   $cc = $email;
   $body = '<p><strong>Name:</strong>&nbsp;' . $name . '</p>' .
-            '<p><strong>Organisation:</strong>&nbsp;' . $org . '</p>' .
+            '<p><strong>Organisation:</strong>&nbsp;' . check_plain($org) . '</p>' .
             '<p><strong>Organisation Type:</strong>&nbsp;' . $type . '</p>' .
             '<p><strong>State:</strong>&nbsp;' . $state . '</p>' .
-            '<p><strong>City:</strong>&nbsp;' . $city . '</p>' .
+            '<p><strong>City:</strong>&nbsp;' . check_plain($city) . '</p>' .
             '<p><strong>Phone:</strong>&nbsp;' . $phone . '</p>' .
             '<p><strong>Email:</strong>&nbsp;<a href="mailto:' . $email . '">' . $email . '</a></p>' .
             '<p><strong>Topics:</strong></p><ul><li>' . implode('<li>', $topics) . '</ul>' .
-            '<p><strong>Message:</strong>&nbsp;' . $text . '</p>';
+            '<p><strong>Message:</strong>&nbsp;' . check_plain($text) . '</p>';
 
   $message['subject'] = t('Email from ' . $email . ' [SEC=UNCLASSIFIED]');
-  $message['body'][] = check_plain($body);
+  $message['body'][] = $body;
 }
 
 /**
  * Sends an e-mail.
  *
  * @param array $form_values
- *   An array of values from the contact form fields that were submitted.
- *   
+ *   An array of values from the contact form fields that were submitted. 
  */
 
 function iica_form_mail_send($form_values) {
-  $module = 'iica';
+  $module = 'iica_form';
   $key = 'iica_form_email';
 
   $params = $form_values;
@@ -273,7 +330,7 @@ function iica_form_mail_send($form_values) {
   }
 }
 
-function iica_form_iica_form_form_validate($form, &$form_state) {
+function _iica_form_form_builder_validate($form, &$form_state) {
   // Validates the form.
   $email = $form_state['values']['email'];
   $phone = $form_state['values']['phone'];
@@ -286,6 +343,45 @@ function iica_form_iica_form_form_validate($form, &$form_state) {
   }
 }
 
-function iica_form_iica_form_form_submit($form, &$form_state) {
-  iica_form_mail_send($form_state['values']);
+function _iica_form_form_builder_submit($form, &$form_state) {
+  // Check the selected topics against those stored in the $destinations array.
+  
+  $topics = $form_state['values']['topic'];
+
+  // Get array of users by the correct role.
+  $accounts = _iica_form_load_users_by_role('iica_user');
+
+  // Assign tids to the users' email ,along with other useful information.
+  foreach ($accounts as $account) {
+    $user_topics = array();
+    foreach ($account->field_iica_topic_reference['und'] as $tid) {
+      array_push($user_topics, $tid['tid']);
+    }
+    $destinations[$account->uid]['topics'] = $user_topics;
+    $destinations[$account->uid]['name'] = $account->name;
+    $destinations[$account->uid]['email'] = $account->mail;
+    $destinations[$account->uid]['uid'] = $account->uid;
+    // We now have a list of destinations (email addresses) with tids assigned.
+  }
+
+  // Now, search through the topics assigned to each destination for the topics submitted to the form. Add the associated emails to the $emails array/
+  $emails = array();
+
+  foreach ($destinations as $destination) {
+    foreach ($topics as $topic) {
+      if ($topic !== 0 and in_array($topic, $destination['topics'])) {
+        $index = $destination['uid'];
+        // If the topic is not empty and the topic is in the list of topics assigned to the destination, add the topic to the $emails array.
+        $emails[$index]['topics'][] = $topic;
+        if (!in_array($destination['email'], $emails)) {
+        // If the destination email is not already in the $emails array, add it, along with a name to use.
+        $emails[$index]['email'] = $destination['email'];
+        $emails[$index]['name'] = $destination['name'];
+      }
+      } 
+      
+    }
+  }
+  // Invoke the mail handler and send along the $emails array.
+  iica_form_mail_send($form_state['values'], $emails);
 }

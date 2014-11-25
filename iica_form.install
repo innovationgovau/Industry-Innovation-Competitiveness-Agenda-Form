@@ -126,10 +126,29 @@ function iica_form_install() {
     drupal_set_message('"Organisation types" vocabulary exists.','status');
   }
 
-  field_cache_clear();
-  field_associate_fields('iica_form');
-  field_create_field(_iica_form_installed_fields());
-  field_create_instance(_iica_form_installed_instances());
+  // Create fields.
+  if(!field_info_field('field_iica_topic_reference')){
+    field_cache_clear();
+    field_associate_fields('iica_form');
+    foreach(_iica_form_installed_fields() as $field) {
+      field_create_field($field);
+    }
+    foreach (_iica_form_installed_instances() as $field_instance) {
+      field_create_instance($field_instance);
+    }
+  }
+
+  // Create role
+  if(!user_role_load_by_name('iica_user')) {
+    _iica_form_create_role('iica_user');
+  }
+}
+
+function _iica_form_create_role($name) {
+  $role = new stdClass();
+  $role->name = $name;
+  user_role_save($role);
+  drupal_set_message('Created "IICA User" role.');
 }
 
 function _iica_form_installed_fields() {
@@ -137,6 +156,7 @@ function _iica_form_installed_fields() {
     'field_iica_topic_reference' => array(
       'field_name' => 'field_iica_topic_reference',
       'active' => 1,
+      'cardinality' => -1,
       'deleted' => 0,
       'entity_types' => array(),
       'foreign keys' => array(
@@ -185,13 +205,13 @@ function _iica_form_installed_instances() {
       'label' => 'Topic Reference',
       'required' => 0,
       'settings' => array(
-        'user_register_form' => 0,
+        'user_register_form' => 1,
       ),
       'widget' => array(
         'active' => 1,
         'module' => 'options',
         'settings' => array(),
-        'type' => 'options_select',
+        'type' => 'options_buttons',
         'weight' => 12,
       ),
     ),
@@ -202,20 +222,32 @@ function _iica_form_installed_instances() {
 * Implements hook_uninstall().
 */
 function iica_form_uninstall() {
-  $vocab = taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda');
-  taxonomy_vocabulary_delete($vocab->vid);
-  drupal_set_message('Deleted "IICA" taxonomy.', 'status');
+  if(variable_get('remove_taxonomies')) {
+    $vocab = taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda');
+    taxonomy_vocabulary_delete($vocab->vid);
+    drupal_set_message('Deleted "IICA" taxonomy.', 'status');
+  
+    $vocab = taxonomy_vocabulary_machine_name_load('states');
+    taxonomy_vocabulary_delete($vocab->vid);
+    drupal_set_message('Deleted "States" taxonomy.', 'status');
 
-  $vocab = taxonomy_vocabulary_machine_name_load('states');
-  taxonomy_vocabulary_delete($vocab->vid);
-  drupal_set_message('Deleted "States" taxonomy.', 'status');
+    $vocab = taxonomy_vocabulary_machine_name_load('org_types');
+    taxonomy_vocabulary_delete($vocab->vid);
+    drupal_set_message('Deleted "Organisation Types" taxonomy.', 'status');
+  }
 
-  $vocab = taxonomy_vocabulary_machine_name_load('org_types');
-  taxonomy_vocabulary_delete($vocab->vid);
-  drupal_set_message('Deleted "Organisation Types" taxonomy.', 'status');
+  if (variable_get('remove_fields')) {
+    if(field_info_field('field_iica_topic_reference')) {
+      field_delete_field('field_iica_topic_reference');
+      field_purge_batch(100);
+      drupal_set_message('Deleted IICA Topic Reference field', 'status');
+    }
+  }
 
-  if(field_info_field('field_iica_topic_reference')) {
-    field_delete_field('field_iica_topic_reference');
-    field_purge_batch(100);
+  if(variable_get('remove_role')) {
+    if(user_role_load_by_name('iica_user')) {
+      user_role_delete('iica_user');
+      drupal_set_message('Role "IICA User" deleted.');
+    }
   }
 }
