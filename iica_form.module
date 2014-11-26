@@ -247,7 +247,6 @@ function _iica_form_form_builder($form_state) {
     '#type' => 'submit',
     '#value' => 'Submit',
   );
-
   return $form;
 }
 
@@ -256,6 +255,9 @@ function _iica_form_form_builder($form_state) {
  */
 
 function iica_form_mail($key, &$message, $params) {
+
+  $values = $params['values'];
+  $emails = $params['emails'];
 
   $options = array(
     'langcode' => $message['language']->language,
@@ -271,32 +273,33 @@ function iica_form_mail($key, &$message, $params) {
   foreach ($headers as $key => $value) {
     $message['headers'][$key] = $value;
   }
-  $name = t($params['name']);
-  $org = t($params['organisation']);
-  $type = $params['orgtype'];
-  $state = $params['state'];
-  $city = t($params['city']);
-  $phone = t($params['phone']);
-  $email = t($params['email']);
-  $topics = $params['topic'];
 
-  foreach ($topics as $key => $value) {
-    if ($value === 0) {
-      unset ($topics[$key]);
-    }
+  $name = t($values['name']);
+  $org = $values['organisation'];
+  $type = taxonomy_term_load($values['orgtype'])->name;
+  $state = taxonomy_term_load($values['state'])->name;
+  $city = t($values['city']);
+  $phone = t($values['phone']);
+  $email = t($values['email']);
+  $topics = '';
+
+  foreach ($emails['topics'] as $topic => $item) {
+    $topics .= '<li>' . taxonomy_term_load($item)->name . '</li>';
   }
 
-  $text = t($params['message']);
+  $text = t($values['message']);
   $cc = $email;
-  $body = '<p><strong>Name:</strong>&nbsp;' . $name . '</p>' .
+  $body =   '<p>A user has requested to be added to the Industry Innovation Competitiveness Agenda email list:</p>' .
+            '<p><strong>Name:</strong>&nbsp;' . $name . '</p>' .
             '<p><strong>Organisation:</strong>&nbsp;' . check_plain($org) . '</p>' .
             '<p><strong>Organisation Type:</strong>&nbsp;' . $type . '</p>' .
             '<p><strong>State:</strong>&nbsp;' . $state . '</p>' .
             '<p><strong>City:</strong>&nbsp;' . check_plain($city) . '</p>' .
             '<p><strong>Phone:</strong>&nbsp;' . $phone . '</p>' .
             '<p><strong>Email:</strong>&nbsp;<a href="mailto:' . $email . '">' . $email . '</a></p>' .
-            '<p><strong>Topics:</strong></p><ul><li>' . implode('<li>', $topics) . '</ul>' .
-            '<p><strong>Message:</strong>&nbsp;' . check_plain($text) . '</p>';
+            '<p><strong>Topics:</strong></p><ul>' . $topics . '</ul>' .
+            '<p><strong>Message:</strong>&nbsp;' . check_plain($text) . '</p>' .
+            '<p><em>This would be sent to ' . $emails['email'] . '.</em></p>';
 
   $message['subject'] = t('Email from ' . $email . ' [SEC=UNCLASSIFIED]');
   $message['body'][] = $body;
@@ -306,23 +309,30 @@ function iica_form_mail($key, &$message, $params) {
  * Sends an e-mail.
  *
  * @param array $form_values
- *   An array of values from the contact form fields that were submitted. 
+ *   An array of values from the contact form fields that were submitted.
+ * @param array $emails
+ *   An array of values used to build specific emails. 
  */
 
-function iica_form_mail_send($form_values) {
+function iica_form_mail_send($form_values, $emails) {
+
   $module = 'iica_form';
-  $key = 'iica_form_email';
-
-  $params = $form_values;
-
-  $to = $params['email'];
+  $params = array(
+    'values' => $form_values,
+    'emails' => array(),
+  );
   $from = 'web.development@industry.gov.au';
-
   $language = language_default();
 
   $send = TRUE;
+  foreach($emails as $email=>$item) {
+      $key = 'iica_form_email_' . $email;
+      $to = 'jesse.boyd@industry.gov.au'; // For testing only.
+      //$to = $emails['email'];
+      $params['emails'] = $item;
+      $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
+  }
 
-  $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
   if ($result['result'] == TRUE) {
     drupal_set_message(t('Your message has been sent.'));
   } else {
