@@ -81,6 +81,14 @@ function _iica_form_admin_form() {
     '#title' => t('Remove installed role?'),
     '#default_value' => variable_get('remove_role', FALSE),
   );
+  $form['owner_email'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Administration email address',
+    '#default_value' => variable_get('owner_email',''),
+    '#size' => 40,
+    '#description' => t('Enter the email address to which you want the administration email to be sent. This will also act as the "From" email address.'),
+    '#required' => TRUE,
+  );
   return system_settings_form($form);
 }
 
@@ -214,7 +222,6 @@ function _iica_form_form_builder($form_state) {
     '#attributes' => array(
       'placeholder' => t('name@domain.com.au'),
     ),
-    '#default_value' => 'jesse.boyd@industry.gov.au',
   );
 
   $form['topics'] = array(
@@ -298,8 +305,7 @@ function iica_form_mail($key, &$message, $params) {
             '<p><strong>Phone:</strong>&nbsp;' . $phone . '</p>' .
             '<p><strong>Email:</strong>&nbsp;<a href="mailto:' . $email . '">' . $email . '</a></p>' .
             '<p><strong>Topics:</strong></p><ul>' . $topics . '</ul>' .
-            '<p><strong>Message:</strong>&nbsp;' . check_plain($text) . '</p>' .
-            '<p><em>This would be sent to ' . $emails['email'] . '.</em></p>';
+            '<p><strong>Message:</strong>&nbsp;' . check_plain($text) . '</p>';
 
   $message['subject'] = t('Email from ' . $email . ' [SEC=UNCLASSIFIED]');
   $message['body'][] = $body;
@@ -321,14 +327,18 @@ function iica_form_mail_send($form_values, $emails) {
     'values' => $form_values,
     'emails' => array(),
   );
-  $from = 'web.development@industry.gov.au';
+  if(isset(variable_get('owner_email'))) {
+    $from = variable_get('owner_email');
+  } else {
+    drupal_set_message('You need to set a from/admin email address!');
+    exit;
+  }
   $language = language_default();
 
   $send = TRUE;
   foreach($emails as $email=>$item) {
       $key = 'iica_form_email_' . $email;
-      $to = 'jesse.boyd@industry.gov.au'; // For testing only.
-      //$to = $emails['email'];
+      $to = $emails['email'];
       $params['emails'] = $item;
       $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
   }
