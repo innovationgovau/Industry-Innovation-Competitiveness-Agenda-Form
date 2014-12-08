@@ -5,6 +5,10 @@
  */
 
 function iica_form_install() {
+  // Check to see if the database exists, if not, create it based on hook_schema().
+  if(!db_table_exists('iica_form')) {
+    drupal_install_schema('iica_form');
+  }
   // Check to make sure the vocabulary doesn't exist, if not, create it.
   if(!taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda')) {
     drupal_set_message('Creating "IICA" taxonomy.', 'status');
@@ -180,7 +184,6 @@ function _iica_form_installed_fields() {
       'type' => 'taxonomy_term_reference',
     ),
   );
-  drush_log($field);
   return $field;
 }
 
@@ -219,9 +222,84 @@ function _iica_form_installed_instances() {
 }
 
 /**
+ * Implements hook_schema()
+ **/
+
+function iica_form_schema() {
+  $schema['iica_form'] = array(
+    'description' => 'A table to store data on form submissions. It only holds a non-identifiable subset of the information provided by the user.',
+    'fields' => array(
+      'form_id' => array(
+        'description' => 'The count of the form.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'timestamp' => array(
+        'description' => 'Unix timestamp of the form entry.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'ipaddress' => array(
+        'description' => 'IP Address of the computer used to enter the form.',
+        'type' => 'varchar',
+        'length' => 40,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'organisation' => array(
+        'description' => 'Name of the organisation.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'orgtype' => array(
+        'description' => 'Type of organisation.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'state' => array(
+        'description' => 'State where the submitter resides.',
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 3,
+        'default' => '',
+      ),
+      'city' => array(
+        'description' => 'City where the submitter resides',
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 255,
+        'default' => '',
+      ),
+      'topics' => array(
+        'description' => 'Selected topics.',
+        'type' => )
+      'reference' => array(
+        'description' => 'A basic reference number used to refer to particular form entries.',
+        'type' => 'varchar',
+        'length' => 10,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('form_id'),
+  );
+  return $schema;
+}
+
+/**
 * Implements hook_uninstall().
 */
 function iica_form_uninstall() {
+  // Check if database exists and remove it if does based on hook_schema().
+  if(db_table_exists('apprenticeships_ambassadors_form')) {
+    drupal_uninstall_schema('apprenticeships_ambassadors_form');
+  }
   if(variable_get('remove_taxonomies')) {
     $vocab = taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda');
     taxonomy_vocabulary_delete($vocab->vid);
