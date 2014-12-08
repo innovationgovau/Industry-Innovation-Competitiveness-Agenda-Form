@@ -327,7 +327,8 @@ function iica_form_mail_send($form_values, $emails) {
     'values' => $form_values,
     'emails' => array(),
   );
-  if(isset(variable_get('owner_email'))) {
+  $owner_email = variable_get('owner_email');
+  if(isset($owner_email)) {
     $from = variable_get('owner_email');
   } else {
     drupal_set_message('You need to set a from/admin email address!');
