@@ -223,6 +223,7 @@ function _iica_form_installed_instances() {
 
 /**
  * Implements hook_schema()
+ * @TODO: This still needs top be hooked up to the form itself.
  **/
 
 function iica_form_schema() {
@@ -276,9 +277,6 @@ function iica_form_schema() {
         'length' => 255,
         'default' => '',
       ),
-      'topics' => array(
-        'description' => 'Selected topics.',
-        'type' => )
       'reference' => array(
         'description' => 'A basic reference number used to refer to particular form entries.',
         'type' => 'varchar',
@@ -297,9 +295,10 @@ function iica_form_schema() {
 */
 function iica_form_uninstall() {
   // Check if database exists and remove it if does based on hook_schema().
-  if(db_table_exists('apprenticeships_ambassadors_form')) {
-    drupal_uninstall_schema('apprenticeships_ambassadors_form');
+  if(db_table_exists('iica_form')) {
+    drupal_uninstall_schema('iica_form');
   }
+  // Remove various elements of the module depending on whether the site admin has chosen to keep them or not.
   if(variable_get('remove_taxonomies')) {
     $vocab = taxonomy_vocabulary_machine_name_load('industry_innovation_and_competitiveness_agenda');
     taxonomy_vocabulary_delete($vocab->vid);

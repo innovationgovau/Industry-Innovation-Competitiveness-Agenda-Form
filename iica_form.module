@@ -327,8 +327,8 @@ function iica_form_mail_send($form_values, $emails) {
     'values' => $form_values,
     'emails' => array(),
   );
-  $owner_email = variable_get('owner_email');
-  if(isset($owner_email)) {
+  $check_email = variable_get('owner_email');
+  if(isset($check_email)) {
     $from = variable_get('owner_email');
   } else {
     drupal_set_message('You need to set a from/admin email address!');
@@ -371,7 +371,6 @@ function _iica_form_form_builder_submit($form, &$form_state) {
 
   // Get array of users by the correct role.
   $accounts = _iica_form_load_users_by_role('iica_user');
-
   // Assign tids to the users' email ,along with other useful information.
   foreach ($accounts as $account) {
     $user_topics = array();
