@@ -282,8 +282,20 @@ function iica_form_mail($key, &$message, $params) {
   }
 
   $name = t($values['name']);
-  $org = $values['organisation'];
-  $type = taxonomy_term_load($values['orgtype'])->name;
+
+  // Since they are not mandatory fields, check whether 'organisation' and organisation type' have been filled in.
+  if (isset($values['organisation'])) {
+    $org = $values['organisation'];
+  } else {
+    $org = 'Not specified';
+  }
+
+  if(isset($values['orgtype'])) {
+    $type = taxonomy_term_load($values['orgtype'])->name;
+  } else {
+    $type = 'Not specified';
+  }
+
   $state = taxonomy_term_load($values['state'])->name;
   $city = t($values['city']);
   $phone = t($values['phone']);
@@ -296,7 +308,7 @@ function iica_form_mail($key, &$message, $params) {
 
   $text = t($values['message']);
   $cc = $email;
-  $body =   '<p>A user has requested to be added to the Industry Innovation Competitiveness Agenda email list:</p>' .
+  $body =   '<p>A visitor has requested to be added to the Industry Innovation Competitiveness Agenda email list:</p>' .
             '<p><strong>Name:</strong>&nbsp;' . $name . '</p>' .
             '<p><strong>Organisation:</strong>&nbsp;' . check_plain($org) . '</p>' .
             '<p><strong>Organisation Type:</strong>&nbsp;' . $type . '</p>' .
@@ -307,7 +319,7 @@ function iica_form_mail($key, &$message, $params) {
             '<p><strong>Topics:</strong></p><ul>' . $topics . '</ul>' .
             '<p><strong>Message:</strong>&nbsp;' . check_plain($text) . '</p>';
 
-  $message['subject'] = t('Email from ' . $email . ' [SEC=UNCLASSIFIED]');
+  $message['subject'] = t('Industry Innovation Competitiveness Agenda Subscription from ' . $name . ' [SEC=UNCLASSIFIED]');
   $message['body'][] = $body;
 }
 
@@ -339,7 +351,7 @@ function iica_form_mail_send($form_values, $emails) {
   $send = TRUE;
   foreach($emails as $email=>$item) {
       $key = 'iica_form_email_' . $email;
-      $to = $emails['email'];
+      $to = $item['email'];
       $params['emails'] = $item;
       $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
   }
@@ -373,18 +385,22 @@ function _iica_form_form_builder_submit($form, &$form_state) {
   $accounts = _iica_form_load_users_by_role('iica_user');
   // Assign tids to the users' email ,along with other useful information.
   foreach ($accounts as $account) {
-    $user_topics = array();
-    foreach ($account->field_iica_topic_reference['und'] as $tid) {
-      array_push($user_topics, $tid['tid']);
+
+    // Check to make sure the $account has topics assigned to it. If not, it gets skipped.
+    if(isset($account->field_iica_topic_reference['und'])) {
+      $user_topics = array();
+      foreach ($account->field_iica_topic_reference['und'] as $tid) {
+        array_push($user_topics, $tid['tid']);
+      }
+      $destinations[$account->uid]['topics'] = $user_topics;
+      $destinations[$account->uid]['name'] = $account->name;
+      $destinations[$account->uid]['email'] = $account->mail;
+      $destinations[$account->uid]['uid'] = $account->uid;
+      // We now have a list of destinations (email addresses) with tids assigned.
     }
-    $destinations[$account->uid]['topics'] = $user_topics;
-    $destinations[$account->uid]['name'] = $account->name;
-    $destinations[$account->uid]['email'] = $account->mail;
-    $destinations[$account->uid]['uid'] = $account->uid;
-    // We now have a list of destinations (email addresses) with tids assigned.
   }
 
-  // Now, search through the topics assigned to each destination for the topics submitted to the form. Add the associated emails to the $emails array/
+  // Now, search through the topics assigned to each destination for the topics submitted to the form. Add the associated emails to the $emails array.
   $emails = array();
 
   foreach ($destinations as $destination) {
