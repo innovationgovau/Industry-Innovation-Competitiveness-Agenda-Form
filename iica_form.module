@@ -151,7 +151,6 @@ function _iica_form_form_builder($form_state) {
     '#attributes' => array(
       'placeholder' => t('Enter your name'),
     ),
-    '#default_value' => 'test',
   );
 
   $form['details']['organisation'] = array(
@@ -163,7 +162,6 @@ function _iica_form_form_builder($form_state) {
     '#attributes' => array(
       'placeholder' => t('Business/Organisation name'),
     ),
-    '#default_value' => 'test',
   );
 
   $form['details']['orgtype'] = array(
@@ -183,7 +181,6 @@ function _iica_form_form_builder($form_state) {
     '#title' => t('State/Territory'),
     '#required' => TRUE,
     '#options' => _iica_form_get_options('states'),
-    '#default_value' => 'ACT',
   );
 
   $form['details']['city'] = array(
@@ -196,7 +193,6 @@ function _iica_form_form_builder($form_state) {
     '#attributes' => array(
       'placeholder' => t('City/Town'),
     ),
-    '#default_value' => 'test',
   );
 
   $form['details']['phone'] = array (
@@ -209,7 +205,6 @@ function _iica_form_form_builder($form_state) {
     '#attributes' => array(
       'placeholder' => t('01 2345 6789'),
     ),
-    '#default_value' => '02 1234 5678',
   );
 
   $form['details']['email'] = array (
@@ -237,7 +232,6 @@ function _iica_form_form_builder($form_state) {
     '#description' => t('Please select one or more topics.'),
     '#options' => _iica_form_get_options(taxonomy_vocabulary_load(variable_get('topic_taxonomy'))->machine_name),
     '#required' => TRUE,
-    '#default_value' => array(0),
   );
 
   $form['topics']['message'] = array(
